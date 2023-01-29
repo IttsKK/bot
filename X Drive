@@ -15,9 +15,13 @@
 // Front_Right          motor         2               
 // Back_Right           motor         3               
 // Back_Left            motor         4               
+// Catapult_Motor       motor         10              
+// Roller_Motor         motor         9               
+// LimitSwitch          digital_in    A               
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
+#include "ButtonClass.h"
 
 using namespace vex;
 
@@ -36,9 +40,28 @@ competition Competition;
 /*  not every time that the robot is disabled.                               */
 /*---------------------------------------------------------------------------*/
 
+//settings
+bool rollerAuto = true;
+int r = 100.0;
+
 void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+
+  lcdButton roller(120, 22, 230, 35, "ROLLER", "#252525","#FF2525", 2);
+  lcdButton noroller(360, 22, 230, 35, "NO ROLLER", "#000022","#FF2525", 2);
+
+  while (true) {
+    
+    if(roller.pressing()){
+      rollerAuto = true;
+    }
+    else if(noroller.pressing()){
+      rollerAuto = false;
+    }
+    
+    wait(100, msec);
+  }
 
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
@@ -54,10 +77,62 @@ void pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+
+void driving(double distance, int direction, int turn, int speed)
+{
+
+  int x = speed * r * cos(direction);
+  int y = speed * r * sin(direction);
+
+  Front_Left.rotateFor(distance, rotationUnits::deg, y + x + turn, velocityUnits::pct, false);
+  Front_Right.rotateFor(distance, rotationUnits::deg, y - x - turn, velocityUnits::pct, false);
+  Back_Right.rotateFor(distance, rotationUnits::deg, y + x - turn, velocityUnits::pct, false);
+  Back_Left.rotateFor(distance, rotationUnits::deg, y - x + turn, velocityUnits::pct, false);
+
+/*
+  Front_Left.setVelocity(y + x, percent);
+  Front_Right.setVelocity(y - x, percent);
+  Back_Right.setVelocity(y + x , percent);
+  Back_Left.setVelocity(y - x, percent);
+
+  Front_Left.spin(forward);
+  Front_Right.spin(forward);
+  Back_Right.spin(forward);
+  Back_Left.spin(forward);
+*/
+}
+
+/*void turn(double turnDistance, int speed){
+
+  //turnDistance positive or negative for degrees
+
+  Front_Left.setVelocity(turnDistance, percent);
+  Front_Right.setVelocity(-turnDistance, percent);
+  Back_Right.setVelocity(-turnDistance, percent);
+  Back_Left.setVelocity(turnDistance, percent);  
+
+  Front_Left.spin(forward);
+  Front_Right.spin(forward);
+  Back_Right.spin(forward);
+  Back_Left.spin(forward);
+}*/
+
+void roller(double rotations, int speed) //seconds?
+{
+Roller_Motor.rotateFor(rotations, rotationUnits::deg, speed, velocityUnits::pct, false);
+}
+
+void catapult(double rotations, int speed) //seconds?
+{
+Roller_Motor.rotateFor(rotations, rotationUnits::deg, speed, velocityUnits::pct, false);
+}
+
 void autonomous(void) {
-  // ..........................................................................
-  // Insert autonomous user code here.
-  // ..........................................................................
+
+  driving(10, 90, 0, 50);
+
+  //turn(180, 50);
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -70,21 +145,50 @@ void autonomous(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-void drive(void) {
+void control(void) {
 
   int x = Controller1.Axis4.position();
-  int y = Controller1.Axis4.position();
-  int x2 = Controller1.Axis4.position();
+  int y = Controller1.Axis3.position();
+  int x2 = Controller1.Axis1.position();
 
-  Front_Left.setVelocity(x + y + x2, percent);
-  Front_Right.setVelocity(x - y - x2, percent);
-  Back_Right.setVelocity(x + y - x2, percent);
-  Front_Left.setVelocity(x - y + x2, percent);
+  bool catapult = Controller1.ButtonB.pressing();
+  bool roller = Controller1.ButtonR2.pressing();
+
+  if(catapult){
+    
+    Catapult_Motor.spin(forward);
+
+  }
+  else{
+
+    Catapult_Motor.stop();
+
+  }
+
+  if(roller){
+    
+    Roller_Motor.spin(forward);
+
+  }
+  else{
+
+    Roller_Motor.stop();
+
+  }
+
+  //if(catapult){Catapult_Motor.spin(forward);}//do whatever makes your robot shoot here
+  //else if(!LimitSwitch.value()){Catapult_Motor.spin(reverse);}//pull back the catapult as long as the limitswitch is not pressed
+  //else{Catapult_Motor.stop();}//if the limit switch is pressed, stop moving the catapult
+
+  Front_Left.setVelocity(y + x + x2, percent);
+  Front_Right.setVelocity(y - x - x2, percent);
+  Back_Right.setVelocity(y + x - x2, percent);
+  Back_Left.setVelocity(y - x + x2, percent);
 
   Front_Left.spin(forward);
   Front_Right.spin(forward);
   Back_Right.spin(forward);
-  Front_Left.spin(forward);
+  Back_Left.spin(forward);
   
 }
 
@@ -92,7 +196,7 @@ void usercontrol(void) {
   // User control code here, inside the loop
   while (1) {
     
-    drive();
+    control();
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.

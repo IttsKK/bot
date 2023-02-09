@@ -1,0 +1,224 @@
+/*----------------------------------------------------------------------------*/
+/*                                                                            */
+/*    Module:       main.cpp                                                  */
+/*    Author:       VEX                                                       */
+/*    Created:      Thu Sep 26 2019                                           */
+/*    Description:  Competition Template                                      */
+/*                                                                            */
+/*----------------------------------------------------------------------------*/
+
+// ---- START VEXCODE CONFIGURED DEVICES ----
+// Robot Configuration:
+// [Name]               [Type]        [Port(s)]
+// Controller1          controller                    
+// Front_Left           motor         1               
+// Front_Right          motor         2               
+// Back_Right           motor         3               
+// Back_Left            motor         4               
+// Catapult_Motor       motor         10              
+// Roller_Motor         motor         9               
+// LimitSwitch          digital_in    A               
+// ---- END VEXCODE CONFIGURED DEVICES ----
+
+#include "vex.h"
+#include "ButtonClass.h"
+
+using namespace vex;
+
+// A global instance of competition
+competition Competition;
+
+// define your global instances of motors and other devices here
+
+/*---------------------------------------------------------------------------*/
+/*                          Pre-Autonomous Functions                         */
+/*                                                                           */
+/*  You may want to perform some actions before the competition starts.      */
+/*  Do them in the following function.  You must return from this function   */
+/*  or the autonomous and usercontrol tasks will not be started.  This       */
+/*  function is only called once after the V5 has been powered on and        */
+/*  not every time that the robot is disabled.                               */
+/*---------------------------------------------------------------------------*/
+
+//settings
+bool rollerAuto = true;
+double r = 100.0;
+
+//Circumference
+double c = 0.5785452478;
+
+void pre_auton(void) {
+  // Initializing Robot Configuration. DO NOT REMOVE!
+  vexcodeInit();
+
+  lcdButton roller(120, 22, 230, 35, "ROLLER", "#252525","#FF2525", 2);
+  lcdButton noroller(360, 22, 230, 35, "NO ROLLER", "#000022","#FF2525", 2);
+
+  while (true) {
+    
+    if(roller.pressing()){
+      rollerAuto = true;
+    }
+    else if(noroller.pressing()){
+      rollerAuto = false;
+    }
+    
+    wait(100, msec);
+  }
+
+  // All activities that occur before the competition starts
+  // Example: clearing encoders, setting servo positions, ...
+}
+
+/*---------------------------------------------------------------------------*/
+/*                                                                           */
+/*                              Autonomous Task                              */
+/*                                                                           */
+/*  This task is used to control your robot during the autonomous phase of   */
+/*  a VEX Competition.                                                       */
+/*                                                                           */
+/*  You must modify the code to add your own robot specific commands here.   */
+/*---------------------------------------------------------------------------*/
+
+
+void driving(double time, int direction, int turn, int speed)
+{
+
+  int x = speed * r * cos(direction);
+  int y = speed * r * sin(direction);
+
+  //int r = rotations * c;
+
+  Front_Left.spin(vex::forward, y + x + turn, velocityUnits::pct);
+  Front_Right.spin(vex::forward, y - x - turn, velocityUnits::pct);
+  Back_Right.spin(vex::forward, y + x - turn, velocityUnits::pct);
+  Back_Left.spin(vex::forward, y - x + turn, velocityUnits::pct);
+
+  wait(time, seconds);
+
+  Front_Left.stop();
+  Front_Right.stop();
+  Back_Right.stop();
+  Back_Left.stop();
+
+}
+
+void roller(double rotations, int speed) //seconds?
+{
+Roller_Motor.rotateFor(rotations, rotationUnits::deg, speed, velocityUnits::pct, false);
+}
+
+void catapult(double rotations, int speed) //seconds?
+{
+Roller_Motor.rotateFor(rotations, rotationUnits::deg, speed, velocityUnits::pct, false);
+}
+
+/*---------------------------------------------------------------------------*/
+/*                                                                           */
+/*                              Autonomous Task                              */
+/*                                                                           */
+/*                                Functions:                                 */
+/*                Driving(Rotations, Direction, Turn, Speed)                 */
+/*                          Time => How Long To Move For           90°       */
+/*                     Direction => Angle in Degrees     ->    180° --> 0°   */
+/*                          Turn => Additional Turning             270°      */
+/*                                     |                                     */
+/*                                     |                                     */
+/*                                     |                                     */
+/*                                     |                                     */
+/*                                     |                                     */
+/*---------------------------------------------------------------------------*/
+
+void autonomous(void) {
+
+  driving(2, 0, 0, 50);
+  driving(2, 0, 360, 50);
+
+  //turn(180, 50);
+
+}
+
+/*---------------------------------------------------------------------------*/
+/*                                                                           */
+/*                              User Control Task                            */
+/*                                                                           */
+/*  This task is used to control your robot during the user control phase of */
+/*  a VEX Competition.                                                       */
+/*                                                                           */
+/*  You must modify the code to add your own robot specific commands here.   */
+/*---------------------------------------------------------------------------*/
+
+void control(void) {
+
+  int x = Controller1.Axis4.position();
+  int y = Controller1.Axis3.position();
+  int x2 = Controller1.Axis1.position();
+
+  bool catapult = Controller1.ButtonB.pressing();
+  bool roller = Controller1.ButtonR2.pressing();
+
+  if(catapult){
+    
+    Catapult_Motor.spin(forward);
+
+  }
+  else{
+
+    Catapult_Motor.stop();
+
+  }
+
+  if(roller){
+    
+    Roller_Motor.spin(forward);
+
+  }
+  else{
+
+    Roller_Motor.stop();
+
+  }
+
+  //if(catapult){Catapult_Motor.spin(forward);}//do whatever makes your robot shoot here
+  //else if(!LimitSwitch.value()){Catapult_Motor.spin(reverse);}//pull back the catapult as long as the limitswitch is not pressed
+  //else{Catapult_Motor.stop();}//if the limit switch is pressed, stop moving the catapult
+
+  Front_Left.setVelocity(y + x + x2, percent);
+  Front_Right.setVelocity(y - x - x2, percent);
+  Back_Right.setVelocity(y + x - x2, percent);
+  Back_Left.setVelocity(y - x + x2, percent);
+
+  Front_Left.spin(forward);
+  Front_Right.spin(forward);
+  Back_Right.spin(forward);
+  Back_Left.spin(forward);
+  
+}
+
+void usercontrol(void) {
+  // User control code here, inside the loop
+  while (1) {
+    
+    control();
+
+    wait(20, msec); // Sleep the task for a short amount of time to
+                    // prevent wasted resources.
+  }
+}
+
+//
+// Main will set up the competition functions and callbacks.
+//
+int main() {
+  // Set up callbacks for autonomous and driver control periods.
+  Competition.autonomous(autonomous);
+  Competition.drivercontrol(usercontrol);
+
+  // Run the pre-autonomous function.
+  pre_auton();
+
+  // Prevent main from exiting with an infinite loop.
+  while (true) {
+    wait(100, msec);
+  }
+}
